@@ -17,6 +17,7 @@ import liquibase.serializer.ChangeLogSerializerFactory;
 import liquibase.serializer.core.xml.XMLChangeLogSerializer;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.DatabaseObjectComparator;
+import liquibase.structure.core.Column;
 import liquibase.util.ISODateFormat;
 import liquibase.util.StringUtils;
 
@@ -78,10 +79,10 @@ public class DiffToChangeLog {
             print(new PrintStream(out), changeLogSerializer);
 
             String xml = new String(out.toByteArray());
-            xml = xml.replaceFirst("(?ms).*<databaseChangeLog[^>]*>", "");
-            xml = xml.replaceFirst("</databaseChangeLog>", "");
-            xml = xml.trim();
-            if ("".equals(xml)) {
+            String innerXml = xml.replaceFirst("(?ms).*<databaseChangeLog[^>]*>", "");
+            innerXml = innerXml.replaceFirst("</databaseChangeLog>", "");
+            innerXml = innerXml.trim();
+            if ("".equals(innerXml)) {
                 LogFactory.getLogger().info("No changes found, nothing to do");
                 return;
             }
@@ -89,9 +90,11 @@ public class DiffToChangeLog {
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             String line;
             long offset = 0;
+            boolean foundEndTag = false;
             while ((line = randomAccessFile.readLine()) != null) {
                 int index = line.indexOf("</databaseChangeLog>");
                 if (index >= 0) {
+                    foundEndTag = true;
                     break;
                 } else {
                     offset = randomAccessFile.getFilePointer();
@@ -99,11 +102,17 @@ public class DiffToChangeLog {
             }
 
             String lineSeparator = LiquibaseConfiguration.getInstance().getConfiguration(GlobalConfiguration.class).getOutputLineSeparator();
-            randomAccessFile.seek(offset);
-            randomAccessFile.writeBytes("    ");
-            randomAccessFile.write(xml.getBytes());
-            randomAccessFile.writeBytes(lineSeparator);
-            randomAccessFile.writeBytes("</databaseChangeLog>" + lineSeparator);
+
+            if (foundEndTag) {
+                randomAccessFile.seek(offset);
+                randomAccessFile.writeBytes("    ");
+                randomAccessFile.write(innerXml.getBytes());
+                randomAccessFile.writeBytes(lineSeparator);
+                randomAccessFile.writeBytes("</databaseChangeLog>" + lineSeparator);
+            } else {
+                randomAccessFile.seek(0);
+                randomAccessFile.write(xml.getBytes());
+            }
             randomAccessFile.close();
 
             // BufferedWriter fileWriter = new BufferedWriter(new
@@ -138,8 +147,20 @@ public class DiffToChangeLog {
         List<ChangeSet> changeSets = new ArrayList<ChangeSet>();
         List<Class<? extends DatabaseObject>> types = getOrderedOutputTypes(MissingObjectChangeGenerator.class);
         for (Class<? extends DatabaseObject> type : types) {
-            ObjectQuotingStrategy quotingStrategy = diffOutputControl.getObjectQuotingStrategy();
-            for (DatabaseObject object : diffResult.getMissingObjects(type, comparator)) {
+            ObjectQuotingStrategy quotingStrategy = ObjectQuotingStrategy.QUOTE_ALL_OBJECTS;
+            for (DatabaseObject object : diffResult.getMissingObjects(type, new DatabaseObjectComparator() {
+                @Override
+                public int compare(DatabaseObject o1, DatabaseObject o2) {
+                    if (o1 instanceof Column && o1.getAttribute("order", Integer.class) != null && o2.getAttribute("order", Integer.class) != null) {
+                        int i = o1.getAttribute("order", Integer.class).compareTo(o2.getAttribute("order", Integer.class));
+                        if (i != 0) {
+                            return i;
+                        }
+                    }
+                    return super.compare(o1, o2);
+
+                }
+            })) {
                 if (object == null) {
                     continue;
                 }
@@ -184,7 +205,7 @@ public class DiffToChangeLog {
         List<Class<? extends DatabaseObject>> types = graph.sort(comparisonDatabase, generatorType);
 
         if (!loggedOrderFor.contains(generatorType)) {
-            String log = generatorType.getSimpleName()+" type order: ";
+            String log = generatorType.getSimpleName() + " type order: ";
             for (Class<? extends DatabaseObject> type : types) {
                 log += "    " + type.getName();
             }
@@ -315,7 +336,7 @@ public class DiffToChangeLog {
                         }
                         String from = StringUtils.join(fromTypes, ",");
                         String to = StringUtils.join(toTypes, ",");
-                        message += "    ["+ from +"] -> "+ node.type.getSimpleName()+" -> [" + to +"]\n";
+                        message += "    [" + from + "] -> " + node.type.getSimpleName() + " -> [" + to + "]\n";
                     }
 
                     throw new UnexpectedLiquibaseException(message);
@@ -385,7 +406,7 @@ public class DiffToChangeLog {
 
             @Override
             public int hashCode() {
-                return (this.from.toString()+"."+this.to.toString()).hashCode();
+                return (this.from.toString() + "." + this.to.toString()).hashCode();
             }
         }
     }

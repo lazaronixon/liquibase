@@ -4,6 +4,7 @@ import liquibase.CatalogAndSchema;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.DatabaseConnection;
 import liquibase.database.ObjectQuotingStrategy;
+import liquibase.database.OfflineConnection;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.structure.DatabaseObject;
 import liquibase.exception.DatabaseException;
@@ -159,7 +160,7 @@ public class PostgresDatabase extends AbstractJdbcDatabase {
 
     @Override
     public String escapeObjectName(String objectName, Class<? extends DatabaseObject> objectType) {
-        if (hasMixedCase(objectName)) {
+        if (quotingStrategy == ObjectQuotingStrategy.LEGACY && hasMixedCase(objectName)) {
             return "\"" + objectName + "\"";
         } else {
             return super.escapeObjectName(objectName, objectType);
@@ -236,6 +237,9 @@ public class PostgresDatabase extends AbstractJdbcDatabase {
 
     @Override
     protected String getConnectionSchemaName() {
+        if (getConnection() == null || getConnection() instanceof OfflineConnection) {
+          return null;
+        }
         try {
             String currentSchema = ExecutorService.getInstance().getExecutor(this)
                     .queryForObject(new RawCallStatement("select current_schema"), String.class);

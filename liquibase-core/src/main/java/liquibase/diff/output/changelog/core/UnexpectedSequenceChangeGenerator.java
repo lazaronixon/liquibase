@@ -3,6 +3,7 @@ package liquibase.diff.output.changelog.core;
 import liquibase.change.Change;
 import liquibase.change.core.DropSequenceChange;
 import liquibase.database.Database;
+import liquibase.database.core.PostgresDatabase;
 import liquibase.diff.output.DiffOutputControl;
 import liquibase.diff.output.changelog.ChangeGeneratorChain;
 import liquibase.diff.output.changelog.UnexpectedObjectChangeGenerator;
@@ -21,12 +22,12 @@ public class UnexpectedSequenceChangeGenerator implements UnexpectedObjectChange
 
     @Override
     public Class<? extends DatabaseObject>[] runAfterTypes() {
-        return null;
+        return new Class[] { Table.class};
     }
 
     @Override
     public Class<? extends DatabaseObject>[] runBeforeTypes() {
-        return new Class[] { Table.class};
+        return null;
     }
 
     @Override
@@ -40,6 +41,10 @@ public class UnexpectedSequenceChangeGenerator implements UnexpectedObjectChange
         }
         if (control.getIncludeSchema()) {
             change.setSchemaName(sequence.getSchema().getName());
+        }
+
+        if (comparisonDatabase instanceof PostgresDatabase) {
+            change.setOnlyIfExists(true);
         }
 
         return new Change[] { change };

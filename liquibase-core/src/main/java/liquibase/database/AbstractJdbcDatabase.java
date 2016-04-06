@@ -55,6 +55,7 @@ import java.util.regex.Pattern;
 public abstract class AbstractJdbcDatabase implements Database {
 
     private static final Pattern startsWithNumberPattern = Pattern.compile("^[0-9].*");
+    private final static int FETCH_SIZE = 1000;
 
     private DatabaseConnection connection;
     protected String defaultCatalogName;
@@ -103,6 +104,8 @@ public abstract class AbstractJdbcDatabase implements Database {
 
     private boolean defaultCatalogSet = false;
     private boolean defaultSchemaSet = false;
+
+    private Map<String, Object> attributes = new HashMap<String, Object>();
 
     public String getName() {
         return toString();
@@ -308,7 +311,8 @@ public abstract class AbstractJdbcDatabase implements Database {
 
     /**
      * Overwrite this method to get the default schema name for the connection.
-     *
+     * If you only need to change the statement that obtains the current schema then override
+     *  @see AbstractJdbcDatabase#getConnectionSchemaNameCallStatement()
      * @return
      */
     protected String getConnectionSchemaName() {
@@ -316,12 +320,24 @@ public abstract class AbstractJdbcDatabase implements Database {
             return null;
         }
         try {
-            return ExecutorService.getInstance().getExecutor(this).queryForObject(new RawCallStatement("call current_schema"), String.class);
-
+            String currentSchemaStatement = getConnectionSchemaNameCallStatement();
+            return ExecutorService.getInstance().getExecutor(this).
+            		queryForObject(new RawCallStatement(currentSchemaStatement), String.class);
         } catch (Exception e) {
             LogFactory.getLogger().info("Error getting default schema", e);
         }
         return null;
+    }
+
+    /**
+     * Used to obtain the connection schema name through a statement
+     * Override this method to change the statement.
+     * Only override this if getConnectionSchemaName is left unchanges or is using this method.
+     * @see AbstractJdbcDatabase#getConnectionSchemaName()
+     * @return
+     */
+    protected String getConnectionSchemaNameCallStatement(){
+        return "call current_schema";
     }
 
     @Override
@@ -338,6 +354,11 @@ public abstract class AbstractJdbcDatabase implements Database {
         if (!supportsSchemas()) {
             defaultCatalogSet = schemaName != null;
         }
+    }
+
+    @Override
+    public Integer getFetchSize() {
+        return FETCH_SIZE;
     }
 
     /**
@@ -466,6 +487,10 @@ public abstract class AbstractJdbcDatabase implements Database {
 
     protected boolean isDateTime(final String isoDate) {
         return isoDate.length() >= "yyyy-MM-ddThh:mm:ss".length();
+    }
+    
+    protected boolean isTimestamp(final String isoDate) {
+        return isoDate.length() >= "yyyy-MM-ddThh:mm:ss.SSS".length();
     }
 
     protected boolean isTimeOnly(final String isoDate) {
@@ -1013,8 +1038,12 @@ public abstract class AbstractJdbcDatabase implements Database {
             return quoteObject(columnName, Column.class);
         }
 
-        if (!quoteNamesThatMayBeFunctions && columnName.contains("(")) {
-            return columnName;
+        if (columnName.contains("(")) {
+            if (quoteNamesThatMayBeFunctions) {
+                return quoteObject(columnName, Column.class);
+            } else {
+                return columnName;
+            }
         }
         return escapeObjectName(columnName, Column.class);
     }
@@ -1240,7 +1269,15 @@ public abstract class AbstractJdbcDatabase implements Database {
                 continue;
             }
             LogFactory.getLogger().debug("Executing Statement: " + statement);
-            ExecutorService.getInstance().getExecutor(this).execute(statement, sqlVisitors);
+            try {
+                ExecutorService.getInstance().getExecutor(this).execute(statement, sqlVisitors);
+            } catch (DatabaseException e) {
+                if (statement.continueOnError()) {
+                    LogFactory.getLogger().severe("Error executing statement '"+statement.toString()+"', but continuing", e);
+                } else {
+                    throw e;
+                }
+            }
         }
     }
 
@@ -1498,5 +1535,23 @@ public abstract class AbstractJdbcDatabase implements Database {
     @Override
     public String unescapeDataTypeString(String dataTypeString) {
         return dataTypeString;
+    }
+
+    public Object get(String key) {
+        return attributes.get(key);
+    }
+
+    public AbstractJdbcDatabase set(String key, Object value) {
+        if (value == null) {
+            attributes.remove(key);
+        } else {
+            attributes.put(key, value);
+        }
+        return this;
+    }
+
+    @Override
+    public ValidationErrors validate() {
+        return new ValidationErrors();
     }
 }

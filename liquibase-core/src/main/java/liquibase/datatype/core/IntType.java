@@ -26,10 +26,8 @@ public class IntType extends LiquibaseDataType {
         if (database instanceof InformixDatabase && isAutoIncrement()) {
             return new DatabaseDataType("SERIAL");
         }
-        if (database instanceof OracleDatabase) {
-            return new DatabaseDataType("NUMBER", 10);
-        }
-        if (database instanceof DB2Database || database instanceof DerbyDatabase) {
+
+        if (database instanceof DB2Database || database instanceof DerbyDatabase || database instanceof OracleDatabase) {
             return new DatabaseDataType("INTEGER");
         }
         if (database instanceof PostgresDatabase) {
@@ -41,7 +39,7 @@ public class IntType extends LiquibaseDataType {
             return new DatabaseDataType(database.escapeDataTypeName("int"));
         }
         if (database instanceof MySQLDatabase) {
-            DatabaseDataType type = new DatabaseDataType("INT", getParameters());
+            DatabaseDataType type = new DatabaseDataType("INT");
             type.addAdditionalInformation(getAdditionalInformation());
             return type;
         }

@@ -1,6 +1,5 @@
 package liquibase.datatype
 
-import liquibase.database.DatabaseFactory
 import liquibase.database.core.*
 import liquibase.datatype.core.*
 import liquibase.sdk.database.MockDatabase
@@ -70,6 +69,12 @@ public class DataTypeFactoryTest extends Specification {
         "[float]"                                            | new MSSQLDatabase()   | "[float](53)"                                        | FloatType     | false
         "float(53)"                                          | new MSSQLDatabase()   | "[float](53)"                                        | FloatType     | false
         "[float](53)"                                        | new MSSQLDatabase()   | "[float](53)"                                        | FloatType     | false
+        "geography"                                          | new MSSQLDatabase()   | "[geography]"                                        | UnknownType   | false
+        "[geography]"                                        | new MSSQLDatabase()   | "[geography]"                                        | UnknownType   | false
+        "geography(1, 2)"                                    | new MSSQLDatabase()   | "[geography]"                                        | UnknownType   | false
+        "geometry"                                           | new MSSQLDatabase()   | "[geometry]"                                         | UnknownType   | false
+        "[geometry]"                                         | new MSSQLDatabase()   | "[geometry]"                                         | UnknownType   | false
+        "geometry(3, 4)"                                     | new MSSQLDatabase()   | "[geometry]"                                         | UnknownType   | false
         "image"                                              | new MSSQLDatabase()   | "[image]"                                            | BlobType      | false
         "[image]"                                            | new MSSQLDatabase()   | "[image]"                                            | BlobType      | false
         "int"                                                | new MSSQLDatabase()   | "[int]"                                              | IntType       | false
@@ -106,13 +111,16 @@ public class DataTypeFactoryTest extends Specification {
         "[smallint]"                                         | new MSSQLDatabase()   | "[smallint]"                                         | SmallIntType  | false
         "smallmoney"                                         | new MSSQLDatabase()   | "[smallmoney]"                                       | CurrencyType  | false
         "[smallmoney]"                                       | new MSSQLDatabase()   | "[smallmoney]"                                       | CurrencyType  | false
+        "sql_variant"                                        | new MSSQLDatabase()   | "[sql_variant]"                                      | UnknownType   | false
+        "[sql_variant]"                                      | new MSSQLDatabase()   | "[sql_variant]"                                      | UnknownType   | false
+        "sql_variant(5, 6)"                                  | new MSSQLDatabase()   | "[sql_variant]"                                      | UnknownType   | false
         "text"                                               | new MSSQLDatabase()   | "[text]"                                             | ClobType      | false
         "[text]"                                             | new MSSQLDatabase()   | "[text]"                                             | ClobType      | false
         "time"                                               | new MSSQLDatabase()   | "[time](7)"                                          | TimeType      | false
         "[time]"                                             | new MSSQLDatabase()   | "[time](7)"                                          | TimeType      | false
         "time(6)"                                            | new MSSQLDatabase()   | "[time](6)"                                          | TimeType      | false
         "[time](6)"                                          | new MSSQLDatabase()   | "[time](6)"                                          | TimeType      | false
-        "timestamp"                                          | new MSSQLDatabase()   | "[DATETIME]"                                         | TimestampType | false
+        "timestamp"                                          | new MSSQLDatabase()   | "[datetime]"                                         | TimestampType | false
         "tinyint"                                            | new MSSQLDatabase()   | "[tinyint]"                                          | TinyIntType   | false
         "[tinyint]"                                          | new MSSQLDatabase()   | "[tinyint]"                                          | TinyIntType   | false
         "uniqueidentifier"                                   | new MSSQLDatabase()   | "[uniqueidentifier]"                                 | UUIDType      | false
@@ -172,7 +180,7 @@ public class DataTypeFactoryTest extends Specification {
         "[varchar](MAX) COLLATE Latin1_General_BIN"          | new MSSQLDatabase()   | "[varchar](MAX) COLLATE Latin1_General_BIN"          | VarcharType   | false
         "INT"                                                | new MySQLDatabase()   | "INT"                                                | IntType       | false
         "INT UNSIGNED"                                       | new MySQLDatabase()   | "INT UNSIGNED"                                       | IntType       | false
-        "INT(11) UNSIGNED"                                   | new MySQLDatabase()   | "INT(11) UNSIGNED"                                   | IntType       | false
+        "INT(11) UNSIGNED"                                   | new MySQLDatabase()   | "INT UNSIGNED"                                   | IntType       | false
         "TINYINT"                                            | new MySQLDatabase()   | "TINYINT"                                            | TinyIntType   | false
         "TINYINT UNSIGNED"                                   | new MySQLDatabase()   | "TINYINT UNSIGNED"                                   | TinyIntType   | false
         "TINYINT(1) UNSIGNED"                                | new MySQLDatabase()   | "TINYINT(1) UNSIGNED"                                | TinyIntType   | false
@@ -182,6 +190,7 @@ public class DataTypeFactoryTest extends Specification {
         "MEDIUMINT UNSIGNED"                                 | new MySQLDatabase()   | "MEDIUMINT UNSIGNED"                                 | MediumIntType | false
         "BIGINT"                                             | new MySQLDatabase()   | "BIGINT"                                             | BigIntType    | false
         "BIGINT UNSIGNED"                                    | new MySQLDatabase()   | "BIGINT UNSIGNED"                                    | BigIntType    | false
+        "BINARY(16)"                                         | new MySQLDatabase()   | "BINARY(16)"                                         | BlobType      | false
         "tinyblob"                                           | new MySQLDatabase()   | "TINYBLOB"                                           | BlobType      | false
         "tinytext"                                           | new MySQLDatabase()   | "TINYTEXT"                                           | ClobType      | false
         "mediumblob"                                         | new MySQLDatabase()   | "MEDIUMBLOB"                                         | BlobType      | false
@@ -191,6 +200,7 @@ public class DataTypeFactoryTest extends Specification {
         "xml"                                                | new OracleDatabase()  | "XMLTYPE"                                            | XMLType       | false
         "xmltype"                                            | new OracleDatabase()  | "XMLTYPE"                                            | XMLType       | false
         "xml"                                                | new PostgresDatabase()| "XML"                                                | XMLType       | false
+        "BINARY(16)"                                         | new H2Database()      | "BINARY(16)"                                         | BlobType      | false
     }
 
     @Unroll("#featureName: #object for #database")
